@@ -96,7 +96,7 @@ class Member(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='memberships')
-    stokvel = models.ForeignKey('stokvels.Stokvel', on_delete=models.CASCADE, related_name='members')
+    stokvel = models.ForeignKey('stokvel.Stokvel', on_delete=models.CASCADE, related_name='members')
 
     # Member details
     member_number = models.CharField(max_length=20, blank=True)
@@ -244,7 +244,7 @@ class MembershipApplication(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='applications')
-    stokvel = models.ForeignKey('stokvels.Stokvel', on_delete=models.CASCADE, related_name='applications')
+    stokvel = models.ForeignKey('stokvel.Stokvel', on_delete=models.CASCADE, related_name='applications')
 
     status = models.CharField(max_length=20, choices=APPLICATION_STATUS_CHOICES, default='submitted')
 
