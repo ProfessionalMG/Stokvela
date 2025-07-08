@@ -1,8 +1,14 @@
+# stokvel/models.py
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
 import uuid
+
+from .managers import (
+    StokvelManager, ContributionRuleManager, PenaltyRuleManager,
+    StokvelCycleManager, StokvelBankAccountManager, StokvelConstitutionManager
+)
 
 
 class Stokvel(models.Model):
@@ -22,6 +28,9 @@ class Stokvel(models.Model):
     # Metadata
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
+
+    # Custom manager
+    objects = StokvelManager()
 
     def __str__(self):
         return self.name
@@ -105,6 +114,9 @@ class StokvelConstitution(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
 
+    # Custom manager
+    objects = StokvelConstitutionManager()
+
     def __str__(self):
         return f"{self.stokvel.name} Constitution"
 
@@ -152,8 +164,21 @@ class ContributionRule(models.Model):
     description = models.TextField(blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
 
+    # Custom manager
+    objects = ContributionRuleManager()
+
     def __str__(self):
         return f"{self.stokvel.name} - {self.name} (R{self.amount})"
+
+    def is_active_for_date(self, target_date):
+        """Check if rule is active for a specific date"""
+        if not self.is_active:
+            return False
+        if self.effective_from > target_date:
+            return False
+        if self.effective_until and self.effective_until < target_date:
+            return False
+        return True
 
     class Meta:
         verbose_name = "Contribution Rule"
@@ -213,6 +238,9 @@ class PenaltyRule(models.Model):
     description = models.TextField(blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
 
+    # Custom manager
+    objects = PenaltyRuleManager()
+
     def __str__(self):
         return f"{self.stokvel.name} - {self.name}"
 
@@ -235,6 +263,16 @@ class PenaltyRule(models.Model):
             penalty = self.maximum_amount
 
         return penalty
+
+    def is_active_for_date(self, target_date):
+        """Check if rule is active for a specific date"""
+        if not self.is_active:
+            return False
+        if self.effective_from > target_date:
+            return False
+        if self.effective_until and self.effective_until < target_date:
+            return False
+        return True
 
     class Meta:
         verbose_name = "Penalty Rule"
@@ -268,6 +306,9 @@ class StokvelCycle(models.Model):
     description = models.TextField(blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
 
+    # Custom manager
+    objects = StokvelCycleManager()
+
     def __str__(self):
         return f"{self.stokvel.name} - {self.name}"
 
@@ -275,6 +316,26 @@ class StokvelCycle(models.Model):
     def is_current(self):
         today = timezone.now().date()
         return self.start_date <= today <= self.end_date
+
+    @property
+    def duration_months(self):
+        """Calculate cycle duration in months"""
+        return (self.end_date.year - self.start_date.year) * 12 + (self.end_date.month - self.start_date.month)
+
+    def get_progress_percentage(self):
+        """Calculate cycle progress as percentage"""
+        if self.status != 'active':
+            return 0 if self.status == 'planned' else 100
+
+        today = timezone.now().date()
+        if today < self.start_date:
+            return 0
+        elif today > self.end_date:
+            return 100
+        else:
+            total_days = (self.end_date - self.start_date).days
+            elapsed_days = (today - self.start_date).days
+            return round((elapsed_days / total_days) * 100, 1) if total_days > 0 else 0
 
     class Meta:
         verbose_name = "Stokvel Cycle"
@@ -297,6 +358,9 @@ class StokvelBankAccount(models.Model):
 
     created_date = models.DateTimeField(auto_now_add=True)
 
+    # Custom manager
+    objects = StokvelBankAccountManager()
+
     def __str__(self):
         return f"{self.stokvel.name} - {self.bank_name} ({self.account_number})"
 
@@ -308,6 +372,13 @@ class StokvelBankAccount(models.Model):
                 is_primary=True
             ).exclude(pk=self.pk).update(is_primary=False)
         super().save(*args, **kwargs)
+
+    @property
+    def masked_account_number(self):
+        """Returns masked account number for display"""
+        if len(self.account_number) <= 4:
+            return self.account_number
+        return f"****{self.account_number[-4:]}"
 
     class Meta:
         verbose_name = "Stokvel Bank Account"
