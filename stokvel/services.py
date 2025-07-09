@@ -1,4 +1,3 @@
-# stokvel/services.py
 from django.db import transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError

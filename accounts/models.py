@@ -1,9 +1,13 @@
-from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.validators import RegexValidator
 from django.utils import timezone
 import uuid
+
+from .managers import (
+    UserManager, MemberManager, MembershipApplicationManager,
+    MemberBankAccountManager, MemberActivityManager
+)
 
 
 class User(AbstractUser):
@@ -58,6 +62,9 @@ class User(AbstractUser):
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
 
+    # Custom manager
+    objects = UserManager()
+
     class Meta:
         verbose_name = "User"
         verbose_name_plural = "Users"
@@ -73,6 +80,28 @@ class User(AbstractUser):
             self.country
         ]
         return ', '.join([part for part in address_parts if part])
+
+    @property
+    def display_name(self):
+        """Returns the best display name for the user"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
+        else:
+            return self.username
+
+    def get_verification_percentage(self):
+        """Returns verification completion percentage"""
+        total_checks = 2  # email, phone
+        completed = 0
+
+        if self.email_verified:
+            completed += 1
+        if self.phone_verified:
+            completed += 1
+
+        return int((completed / total_checks) * 100)
 
 
 class Member(models.Model):
@@ -146,6 +175,9 @@ class Member(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
 
+    # Custom manager
+    objects = MemberManager()
+
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.stokvel.name} ({self.get_status_display()})"
 
@@ -179,6 +211,17 @@ class Member(models.Model):
         if self.approval_date:
             return (timezone.now().date() - self.approval_date).days
         return 0
+
+    @property
+    def display_name(self):
+        """Returns member's display name"""
+        return self.user.display_name
+
+    @property
+    def is_leadership(self):
+        """Check if member has a leadership role"""
+        leadership_roles = ['chairperson', 'treasurer', 'secretary', 'admin']
+        return self.role in leadership_roles
 
     def get_bank_reference_list(self):
         """Returns list of bank reference names"""
@@ -214,6 +257,9 @@ class MemberBankAccount(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
 
+    # Custom manager
+    objects = MemberBankAccountManager()
+
     def __str__(self):
         return f"{self.member.user.get_full_name()} - {self.bank_name} ({self.account_number})"
 
@@ -225,6 +271,13 @@ class MemberBankAccount(models.Model):
                 is_primary=True
             ).exclude(pk=self.pk).update(is_primary=False)
         super().save(*args, **kwargs)
+
+    @property
+    def masked_account_number(self):
+        """Returns masked account number for display"""
+        if len(self.account_number) <= 4:
+            return self.account_number
+        return f"****{self.account_number[-4:]}"
 
     class Meta:
         verbose_name = "Member Bank Account"
@@ -275,6 +328,9 @@ class MembershipApplication(models.Model):
     submitted_date = models.DateTimeField(auto_now_add=True)
     decision_date = models.DateTimeField(null=True, blank=True)
 
+    # Custom manager
+    objects = MembershipApplicationManager()
+
     def __str__(self):
         return f"{self.user.get_full_name()} -> {self.stokvel.name} ({self.get_status_display()})"
 
@@ -307,6 +363,11 @@ class MembershipApplication(models.Model):
         self.review_notes = notes
         self.save()
 
+    @property
+    def waiting_days(self):
+        """Number of days since application was submitted"""
+        return (timezone.now().date() - self.submitted_date.date()).days
+
     class Meta:
         verbose_name = "Membership Application"
         verbose_name_plural = "Membership Applications"
@@ -335,6 +396,9 @@ class MemberActivity(models.Model):
     related_object_id = models.CharField(max_length=50, blank=True)
 
     created_date = models.DateTimeField(auto_now_add=True)
+
+    # Custom manager
+    objects = MemberActivityManager()
 
     def __str__(self):
         return f"{self.member.user.get_full_name()} - {self.get_activity_type_display()}"

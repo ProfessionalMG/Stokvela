@@ -1,0 +1,827 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Stokvela Management System{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <style>
+        .sidebar {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .navbar-brand {
+            color: #198754 !important;
+            font-weight: bold;
+        }
+        .card-stats {
+            border-left: 4px solid #198754;
+        }
+        .btn-outline-success:hover {
+            color: #fff;
+            background-color: #198754;
+            border-color: #198754;
+        }
+        .setup-issue {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 5px 0;
+        }
+        .setup-complete {
+            background-color: #d1edff;
+            border-left: 4px solid #0d6efd;
+            padding: 10px;
+            margin: 5px 0;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'stokvel:list' %}">
+                <i class="bi bi-piggy-bank"></i> Stokvela
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'stokvel:list' %}">
+                            <i class="bi bi-house"></i> Stokvels
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'stokvel:create' %}">
+                            <i class="bi bi-plus-circle"></i> Create Stokvel
+                        </a>
+                    </li>
+                </ul>
+
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/admin/"><i class="bi bi-gear"></i> Admin</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid">
+        <div class="row">
+            {% block sidebar %}
+            <!-- Sidebar will be overridden in specific templates -->
+            {% endblock %}
+
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Messages -->
+                {% if messages %}
+                    <div class="mt-3">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- Page Header -->
+                {% block page_header %}{% endblock %}
+
+                <!-- Page Content -->
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script>
+        // CSRF token for AJAX requests
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // Generic AJAX function
+        function makeAjaxRequest(url, method = 'POST', data = {}) {
+            return fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                },
+                body: method !== 'GET' ? JSON.stringify(data) : null
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                } else {
+                    showAlert(data.message, 'danger');
+                }
+                return data;
+            })
+            .catch(error => {
+                showAlert('An error occurred', 'danger');
+                console.error('Error:', error);
+            });
+        }
+
+        // Show alert messages
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            const container = document.querySelector('main .container-fluid, main');
+            if (container) {
+                container.insertBefore(alertDiv, container.firstChild);
+            }
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+
+<!-- templates/stokvel/stokvel_list.html -->
+{% extends 'base.html' %}
+
+{% block title %}Stokvels - {{ block.super }}{% endblock %}
+
+{% block sidebar %}
+<nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+            <span>Management</span>
+        </h6>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="{% url 'stokvel:list' %}">
+                    <i class="bi bi-list"></i> All Stokvels
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:create' %}">
+                    <i class="bi bi-plus-circle"></i> Create New
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+{% endblock %}
+
+{% block page_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Stokvels</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'stokvel:create' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Create Stokvel
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Search and Filters -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" name="search" placeholder="Search stokvels..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-control">
+                            <option value="">All Status</option>
+                            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                            <option value="accepting" {% if status_filter == 'accepting' %}selected{% endif %}>Accepting Members</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="year" class="form-control">
+                            <option value="">All Years</option>
+                            {% for year in available_years %}
+                                <option value="{{ year }}" {% if year_filter == year|stringformat:'s' %}selected{% endif %}>{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-outline-success w-100">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stokvels Grid -->
+<div class="row">
+    {% for stokvel in stokvels %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title">{{ stokvel.name }}</h5>
+                    <div>
+                        {% if stokvel.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+
+                        {% if stokvel.is_accepting_members %}
+                            <span class="badge bg-info">Accepting Members</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <p class="card-text text-muted">{{ stokvel.description|truncatewords:15 }}</p>
+
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-muted">Members</small>
+                        <div class="fw-bold">{{ stokvel.members.count }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Established</small>
+                        <div class="fw-bold">{{ stokvel.date_established.year }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Cycles</small>
+                        <div class="fw-bold">{{ stokvel.cycles.count }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <div class="btn-group w-100" role="group">
+                    <a href="{% url 'stokvel:detail' stokvel.pk %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-eye"></i> View
+                    </a>
+                    <a href="{% url 'stokvel:dashboard' stokvel.pk %}" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                    <a href="{% url 'stokvel:update' stokvel.pk %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="bi bi-piggy-bank" style="font-size: 4rem; color: #dee2e6;"></i>
+            <h4 class="text-muted mt-3">No stokvels found</h4>
+            <p class="text-muted">Get started by creating your first stokvel</p>
+            <a href="{% url 'stokvel:create' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Create Stokvel
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<div class="d-flex justify-content-center mt-4">
+    <nav aria-label="Stokvels pagination">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">Previous</a>
+                </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            </li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}">Next</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+{% endblock %}
+
+<!-- templates/stokvel/stokvel_detail.html -->
+{% extends 'base.html' %}
+
+{% block title %}{{ stokvel.name }} - {{ block.super }}{% endblock %}
+
+{% block sidebar %}
+<nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+            <span>{{ stokvel.name }}</span>
+        </h6>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="{% url 'stokvel:detail' stokvel.pk %}">
+                    <i class="bi bi-info-circle"></i> Overview
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:dashboard' stokvel.pk %}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:constitution_detail' stokvel.pk %}">
+                    <i class="bi bi-file-text"></i> Constitution
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:contribution_rules' stokvel.pk %}">
+                    <i class="bi bi-cash-coin"></i> Contribution Rules
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:penalty_rules' stokvel.pk %}">
+                    <i class="bi bi-exclamation-triangle"></i> Penalty Rules
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:cycles' stokvel.pk %}">
+                    <i class="bi bi-arrow-repeat"></i> Cycles
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:bank_accounts' stokvel.pk %}">
+                    <i class="bi bi-bank"></i> Bank Accounts
+                </a>
+            </li>
+        </ul>
+
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+            <span>Actions</span>
+        </h6>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:update' stokvel.pk %}">
+                    <i class="bi bi-pencil"></i> Edit Stokvel
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'stokvel:reports' stokvel.pk %}">
+                    <i class="bi bi-graph-up"></i> Reports
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+{% endblock %}
+
+{% block page_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">{{ stokvel.name }}</h1>
+        <p class="text-muted">{{ stokvel.description }}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            {% if stokvel.is_active %}
+                <span class="badge bg-success p-2">Active</span>
+            {% else %}
+                <span class="badge bg-secondary p-2">Inactive</span>
+            {% endif %}
+
+            {% if stokvel.is_accepting_members %}
+                <span class="badge bg-info p-2">Accepting Members</span>
+            {% endif %}
+        </div>
+
+        <div class="btn-group">
+            <a href="{% url 'stokvel:dashboard' stokvel.pk %}" class="btn btn-success">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="{% url 'stokvel:update' stokvel.pk %}" class="btn btn-outline-secondary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Setup Status -->
+{% if not setup_valid %}
+<div class="alert alert-warning" role="alert">
+    <h6><i class="bi bi-exclamation-triangle"></i> Setup Incomplete</h6>
+    <p class="mb-2">This stokvel has some setup issues that need attention:</p>
+    <ul class="mb-0">
+        {% for issue in setup_issues %}
+            <li>{{ issue }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+<div class="alert alert-success" role="alert">
+    <h6><i class="bi bi-check-circle"></i> Setup Complete</h6>
+    <p class="mb-0">This stokvel is properly configured and ready for operations.</p>
+</div>
+{% endif %}
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card card-stats">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <p class="card-category text-muted">Total Members</p>
+                        <h4 class="card-title">{{ summary.total_members }}</h4>
+                    </div>
+                    <div class="text-success">
+                        <i class="bi bi-people" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+                <div class="text-muted">
+                    <small>{{ summary.active_members }} active</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card card-stats">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <p class="card-category text-muted">Contribution Rules</p>
+                        <h4 class="card-title">{{ summary.contribution_rules_count }}</h4>
+                    </div>
+                    <div class="text-success">
+                        <i class="bi bi-cash-coin" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+                <div class="text-muted">
+                    <small>Active rules</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card card-stats">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <p class="card-category text-muted">Current Cycle</p>
+                        <h4 class="card-title">
+                            {% if summary.current_cycle %}
+                                {{ summary.current_cycle.name }}
+                            {% else %}
+                                None
+                            {% endif %}
+                        </h4>
+                    </div>
+                    <div class="text-success">
+                        <i class="bi bi-arrow-repeat" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+                <div class="text-muted">
+                    <small>{{ summary.total_cycles }} total cycles</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card card-stats">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <p class="card-category text-muted">Bank Accounts</p>
+                        <h4 class="card-title">{{ summary.bank_accounts_count }}</h4>
+                    </div>
+                    <div class="text-success">
+                        <i class="bi bi-bank" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+                <div class="text-muted">
+                    <small>Configured accounts</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Member Status Breakdown -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Member Status</h5>
+            </div>
+            <div class="card-body">
+                {% if member_stats.total_members > 0 %}
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="h4 text-success">{{ member_stats.active_members }}</div>
+                                <small class="text-muted">Active</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="h4 text-warning">{{ member_stats.pending_members }}</div>
+                                <small class="text-muted">Pending</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if member_stats.probation_members > 0 %}
+                    <hr>
+                    <div class="text-center">
+                        <div class="h5 text-info">{{ member_stats.probation_members }}</div>
+                        <small class="text-muted">In Probation</small>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted text-center">No members yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'stokvel:contribution_rule_create' stokvel.pk %}" class="btn btn-outline-success">
+                        <i class="bi bi-plus-circle"></i> Add Contribution Rule
+                    </a>
+                    <a href="{% url 'stokvel:cycle_create' stokvel.pk %}" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-repeat"></i> Create New Cycle
+                    </a>
+                    <a href="{% url 'stokvel:bank_account_create' stokvel.pk %}" class="btn btn-outline-info">
+                        <i class="bi bi-bank"></i> Add Bank Account
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Contribution Rules</h5>
+                <a href="{% url 'stokvel:contribution_rules' stokvel.pk %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_contributions %}
+                    {% for rule in recent_contributions %}
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div>
+                                <strong>{{ rule.name }}</strong>
+                                <br>
+                                <small class="text-muted">R{{ rule.amount }} - {{ rule.get_contribution_type_display }}</small>
+                            </div>
+                            <div>
+                                {% if rule.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No contribution rules configured</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Penalty Rules</h5>
+                <a href="{% url 'stokvel:penalty_rules' stokvel.pk %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if recent_penalties %}
+                    {% for rule in recent_penalties %}
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div>
+                                <strong>{{ rule.name }}</strong>
+                                <br>
+                                <small class="text-muted">R{{ rule.amount }} - {{ rule.get_penalty_type_display }}</small>
+                            </div>
+                            <div>
+                                {% if rule.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No penalty rules configured</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- templates/stokvel/stokvel_create.html -->
+{% extends 'base.html' %}
+
+{% block title %}Create Stokvel - {{ block.super }}{% endblock %}
+
+{% block page_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Create New Stokvel</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'stokvel:list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-plus-circle"></i> New Stokvel Setup
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <!-- Basic Information -->
+                    <h6 class="border-bottom pb-2 mb-3">Basic Information</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                {{ form.name.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.date_established.id_for_label }}" class="form-label">
+                                {{ form.date_established.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.date_established }}
+                            {% if form.date_established.errors %}
+                                <div class="text-danger small">{{ form.date_established.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">
+                            {{ form.description.label }}
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.registration_number.id_for_label }}" class="form-label">
+                            {{ form.registration_number.label }}
+                        </label>
+                        {{ form.registration_number }}
+                        {% if form.registration_number.errors %}
+                            <div class="text-danger small">{{ form.registration_number.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Optional registration number if applicable</small>
+                    </div>
+
+                    <!-- Constitution Settings -->
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Constitution Settings</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.meeting_frequency.id_for_label }}" class="form-label">
+                                {{ form.meeting_frequency.label }}
+                            </label>
+                            {{ form.meeting_frequency }}
+                            {% if form.meeting_frequency.errors %}
+                                <div class="text-danger small">{{ form.meeting_frequency.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.payout_frequency.id_for_label }}" class="form-label">
+                                {{ form.payout_frequency.label }}
+                            </label>
+                            {{ form.payout_frequency }}
+                            {% if form.payout_frequency.errors %}
+                                <div class="text-danger small">{{ form.payout_frequency.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="{{ form.minimum_members.id_for_label }}" class="form-label">
+                                {{ form.minimum_members.label }}
+                            </label>
+                            {{ form.minimum_members }}
+                            {% if form.minimum_members.errors %}
+                                <div class="text-danger small">{{ form.minimum_members.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.maximum_members.id_for_label }}" class="form-label">
+                                {{ form.maximum_members.label }}
+                            </label>
+                            {{ form.maximum_members }}
+                            {% if form.maximum_members.errors %}
+                                <div class="text-danger small">{{ form.maximum_members.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.contribution_due_day.id_for_label }}" class="form-label">
+                                {{ form.contribution_due_day.label }}
+                            </label>
+                            {{ form.contribution_due_day }}
+                            {% if form.contribution_due_day.errors %}
+                                <div class="text-danger small">{{ form.contribution_due_day.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'stokvel:list' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Create Stokvel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

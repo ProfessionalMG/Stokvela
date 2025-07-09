@@ -1,4 +1,3 @@
-# stokvel/admin.py
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -437,5 +436,4 @@ def stokvel_cycle_post_save(sender, instance, created, **kwargs):
             stokvel=instance.stokvel,
             status='active'
         ).exclude(pk=instance.pk).update(status='completed')
-
 

@@ -212,7 +212,7 @@ class Penalty(models.Model):
         blank=True
     )
     penalty_rule = models.ForeignKey(
-        'stokvel.PenaltyRule',
+        'stokvels.PenaltyRule',
         on_delete=models.CASCADE,
         related_name='applied_penalties'
     )
@@ -304,7 +304,7 @@ class Transaction(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    stokvel = models.ForeignKey('stokvel.Stokvel', on_delete=models.CASCADE, related_name='transactions')
+    stokvel = models.ForeignKey('stokvels.Stokvel', on_delete=models.CASCADE, related_name='transactions')
 
     # Transaction details
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
@@ -383,7 +383,7 @@ class BankStatementImport(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    stokvel = models.ForeignKey('stokvel.Stokvel', on_delete=models.CASCADE, related_name='statement_imports')
+    stokvel = models.ForeignKey('stokvels.Stokvel', on_delete=models.CASCADE, related_name='statement_imports')
 
     # Import details
     file_name = models.CharField(max_length=255)
@@ -447,7 +447,7 @@ class Payout(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     member = models.ForeignKey('accounts.Member', on_delete=models.CASCADE, related_name='payouts')
     stokvel_cycle = models.ForeignKey(
-        'stokvel.StokvelCycle',
+        'stokvels.StokvelCycle',
         on_delete=models.CASCADE,
         related_name='payouts'
     )

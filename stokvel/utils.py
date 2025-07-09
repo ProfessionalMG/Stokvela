@@ -1,4 +1,3 @@
-# stokvel/utils.py
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Dict, Tuple, Optional
